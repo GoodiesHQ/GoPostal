@@ -1,0 +1,85 @@
+recv:
+  # The domain this receiver is responsible for (used in HELO/EHLO and other responses)
+  # Leave empty to accept any identity name
+  domain: "mail.example.local"
+
+  # Listeners define the ports and protocols this receiver will accept connections on
+  listeners:
+    - name: "server-2525"
+      port: 2525
+      type: "smtp"          # smtp | smtps | starttls
+      require_auth: true    # allow unauthenticated on this listener
+    #- name: "server-25465"
+    #  port: 25465
+    #  type: "smtps"         # implicit TLS
+    #  require_auth: true
+    #  tls:
+    #    cert_file: "/path/to/cert.pem"
+    #    key_file:  "/path/to/key.pem"
+    #- name: "server-25587"
+    #  port: 25587
+    #  type: "starttls"      # explicit TLS (STARTTLS)
+    #  require_auth: true
+    #  tls:
+    #    cert_file: "/path/to/cert.pem"
+    #    key_file:  "/path/to/key.pem"
+
+  # Global source IP policy (per-listener can override)
+  allowed_ips:
+    # - 10.0.0.0/8
+    - 172.16.0.0/12
+    # - 192.168.0.0/16
+    # - 100.64.0.0/10
+    - 127.0.0.0/8
+    - ::1/128
+
+  # Authentication capability (what mechs exist), separate from per-listener enforcement
+  auth:
+    # mode: disabled | anonymous | plain | plain-any
+    # - disabled: no AUTH advertised; unauth allowed if listener.require_auth=false
+    # - anonymous: AUTH ANONYMOUS advertised/accepted (rare; usually not recommended)
+    # - plain: AUTH PLAIN against the provided users
+    # - plain-any: AUTH PLAIN but accept any username/password (testing only)
+    mode: "plain"
+    credentials:
+      - username: "alice"
+        password: "Passw0rd1"
+      - username: "bob"
+        password: "Passw0rd2"
+
+  # Sender/recipient policy
+  valid_from:
+    # specific allowed sender email addresses
+    addresses:
+      - "user@example.com"
+    # allow any sender from these domains
+    domains:
+      - "example.org"
+  valid_to:
+    # specific allowed recipient email addresses
+    addresses:
+      - "a@example.com"
+      - "b@example.com"
+    # allow any sender from these domains
+    domains:
+      - "example.org"
+
+  # Operational limits and timeouts (defaults shown)
+  limits:
+    max_size:       26214400     # 25 MiB
+    max_recipients: 100
+    timeout:        "30s"
+
+send:
+  graph:
+    enabled: true
+    tenant_id: "0564701c-1f01-4120-af7f-a5f10192a73d"
+    client_id: "a8a5c463-0ac6-4e28-8b4f-22a2551823c1"
+    client_secret: "<GRAPH_CLIENT_SECRET>"
+    # Optional submission identity for Graph (shared mailbox, etc.)
+    mailbox: "notifications@example.com"
+    timeout: "10s"
+    retries: 3
+    backoff: "5s"
+    # If false, the receiver fails fast when Graph config is incomplete.
+    allow_start_without_graph: false
