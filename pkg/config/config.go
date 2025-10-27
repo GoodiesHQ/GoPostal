@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/goodieshq/gopostal/pkg/auth"
+	"github.com/goodieshq/gopostal/pkg/sender"
 	"gopkg.in/yaml.v3"
 )
 
@@ -63,7 +65,8 @@ func (c *Config) Validate() error {
 	seenNames := make(map[string]int)
 	seenPorts := make(map[uint16]string)
 
-	for i, listener := range c.Recv.Listeners {
+	for i := range c.Recv.Listeners {
+		listener := &c.Recv.Listeners[i]
 		prefix := fmt.Sprintf("recv.listeners[%d]: ", i)
 		// validate name is valid and unique
 		if listener.Name == "" {
@@ -90,6 +93,14 @@ func (c *Config) Validate() error {
 		case ListenerSMTPS, ListenerSTARTTLS:
 			if listener.TLS == nil || listener.TLS.CertFile == "" || listener.TLS.KeyFile == "" {
 				return fmt.Errorf(prefix+"tls: TLS configuration must be provided for listener type '%s'", listener.Type)
+			}
+			cert, err := tls.LoadX509KeyPair(listener.TLS.CertFile, listener.TLS.KeyFile)
+			if err != nil {
+				return fmt.Errorf(prefix+"tls: failed to load TLS certificate/key: %v", err)
+			}
+			listener.TLSConfig = &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS12,
 			}
 		default:
 			return fmt.Errorf(prefix+"type: invalid listener type '%s', must be one of: 'smtp', 'smtps', or 'starttls'", listener.Type)
@@ -199,6 +210,52 @@ func (c *Config) Validate() error {
 	if c.Recv.Limits.Timeout == 0 {
 		c.Recv.Limits.Timeout = 10 * time.Second // default to 10 seconds
 	}
+
+	// Validate SendConfig
+	if c.Send.Graph.TenantID == "" {
+		return errors.New("send.tenant_id: must be defined")
+	}
+
+	if c.Send.Graph.ClientID == "" {
+		return errors.New("send.client_id: must be defined")
+	}
+
+	if c.Send.Graph.ClientSecretEnv == "" {
+		return errors.New("send.client_secret_env: must be defined")
+	}
+
+	clientSecret := os.Getenv(c.Send.Graph.ClientSecretEnv)
+	if clientSecret == "" {
+		return fmt.Errorf("send.client_secret_env: environment variable '%s' is not set or empty", c.Send.Graph.ClientSecretEnv)
+	}
+	c.Send.Graph.ClientSecret = clientSecret
+
+	if c.Send.Timeout < 0 {
+		return errors.New("send.timeout: must be a non-negative duration")
+	} else if c.Send.Timeout == 0 {
+		c.Send.Timeout = 10 * time.Second
+	}
+
+	if c.Send.Retries < 0 {
+		return errors.New("send.retries: must be a non-negative integer")
+	} else if c.Send.Retries == 0 {
+		c.Send.Retries = 3
+	}
+
+	if c.Send.Backoff < 0 {
+		return errors.New("send.backoff: must be a non-negative duration")
+	} else if c.Send.Backoff == 0 {
+		c.Send.Backoff = 5 * time.Second
+	}
+
+	c.Send.Sender = sender.NewGraphSender(
+		c.Send.Graph.TenantID,
+		c.Send.Graph.ClientID,
+		c.Send.Graph.ClientSecret,
+		c.Send.Timeout,
+		c.Send.Retries,
+		c.Send.Backoff,
+	)
 
 	return nil
 }

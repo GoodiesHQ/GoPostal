@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -29,6 +30,7 @@ type ListenerConfig struct {
 	Type        ListenerType `yaml:"type"`
 	RequireAuth bool         `yaml:"require_auth"`
 	TLS         *TLSConfig   `yaml:"tls,omitempty"`
+	TLSConfig   *tls.Config  `yaml:"-"`
 }
 
 type TLSConfig struct {
