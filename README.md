@@ -5,8 +5,6 @@ A simple agent to relay SMTP (plaintext, TLS, or STARTTLS) to the MS Graph API f
 
 ```yml
 recv:
-  # The domain this receiver is responsible for (used in HELO/EHLO and other responses)
-  # Leave empty to accept any identity name
   domain: "mail.example.local"
 
   # Listeners define the ports and protocols this receiver will accept connections on
@@ -24,8 +22,8 @@ recv:
       require_auth: true
       tls:
         cert_file: "/path/to/cert.pem"
-        key_file:  "/path/to/key.pem"
-    
+        key_file: "/path/to/key.pem"
+
     # Example authenticated explicit TLS server (requires certificates)
     - name: "server-587"
       port: 587
@@ -33,7 +31,7 @@ recv:
       require_auth: true
       tls:
         cert_file: "/path/to/cert.pem"
-        key_file:  "/path/to/key.pem"
+        key_file: "/path/to/key.pem"
 
   # Global source IP policy (remove or use `allowed_ips: []` to allow all source IPs)
   # Example: Allow all non-public IP addresses
@@ -63,17 +61,16 @@ recv:
   # Sender policy - if both addresses and domains are empty, all sources are allowed
   valid_from:
     # specific allowed sender email addresses (remove or use `addresses: []` to allow all)
-    addresses:
-      - "user@example.com"
+    addresses: []
     # allow any sender from these domains (remove or use `domains: []` to allow all)
     domains:
-      - "example.org"
+      - "example.com"
   # Recipient policy - if both addresses and domains are empty, all destinations are allowed
   valid_to:
     # specific allowed recipient email addresses (remove or use `addresses: []` to allow all)
     addresses:
-      - "a@example.com"
-      - "b@example.com"
+      - "alice@email.com"
+      - "bob@email.com"
     # allow any recipient from these domains (remove or use `domains: []` to allow all)
     domains:
       - "example.org"
@@ -85,16 +82,16 @@ recv:
     timeout:        "30s"
 
 send:
+  timeout: "10s"
+  retries: 3
+  backoff: "5s"
+  # If false, the server will not start unless the application can acquire a valid token from the MS Graph API
+  allow_start_without_graph: false
   graph:
     # Azure App Registration information. Be sure to allow Application permission Mail.Send
-    tenant_id: "0564701c-1f01-4120-af7f-a5f10192a73d"
-    client_id: "a8a5c463-0ac6-4e28-8b4f-22a2551823c1"
-    client_secret: "<GRAPH_CLIENT_SECRET>"
+    tenant_id: "84636727-b52f-4ecc-ba3a-8746b0baa177"
+    client_id: "06c473c6-f400-41c4-af67-d4148032aee"
+    client_secret_env: "GRAPH_CLIENT_SECRET"
     # Optional submission identity for Graph (if empty, uses the `from` address provided by SMTP)
     mailbox: "notifications@example.com"
-    timeout: "10s"
-    retries: 3
-    backoff: "5s"
-    # If false, the server will not start unless the application can acquire a valid token from the MS Graph API
-    allow_start_without_graph: false
 ```
